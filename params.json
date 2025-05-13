@@ -1,0 +1,18 @@
+{
+    "input_dim": 128,
+    "latent_dim": 3,
+    "widths": [64, 32],
+    "poly_order": 3,
+    "include_sine": false,
+    "activation": "relu",
+    "sequential_thresholding": true,
+    "threshold_frequency": 100,
+    "learning_rate": 0.001,
+    "coefficient_initialization": "xavier",
+    "coefficient_threshold": 0.1,
+    "model_order": 1,
+    "loss_weight_decoder": 1.0,
+    "loss_weight_sindy_z": 0.0,
+    "loss_weight_sindy_x": 0.0001,
+    "loss_weight_sindy_regularization": 0.00001
+}
