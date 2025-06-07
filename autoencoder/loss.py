@@ -9,25 +9,32 @@ class Loss(torch.nn.Module):
         lambda_3: float,
         lambda_r: float,
         order: int = 1,
+        eps: float = 1e-8,
         *args,
         **kwargs
     ) -> None:
-        """Custom loss fucnction based on multiple MSEs
+        """
+        Custom loss function based on multiple normalized MSEs.
 
         Args:
-            lambda_1 (float): loss weight decoder
-            lambda_2 (float): loss weight sindy z
-            lambda_3 (float): loss weight sindy x
-            lambda_r (float): loss weight sindy regularization
-            order (int, optional): Order of the model can be 1 or 2. Defaults to 1.
+            lambda_1 (float): loss weight for decoder reconstruction (x vs x_decode)
+            lambda_2 (float): loss weight for SINDy latent prediction (dz/ddz vs predicted)
+            lambda_3 (float): loss weight for SINDy x/ dx reconstruction
+            lambda_r (float): loss weight for SINDy coefficient regularization
+            order (int): Order of the model: 1 or 2 (defaults to 1)
+            eps (float): small value to avoid division by zero
         """
         super().__init__(*args, **kwargs)
         self.lambda_1 = lambda_1
         self.lambda_2 = lambda_2
         self.lambda_3 = lambda_3
         self.lambda_r = lambda_r
-
+        self.eps = eps
         self.regularization = True
+
+        self.reconstruction_loss = 0
+        self.latent_loss = 0
+        self.sindy_loss = 0
 
         if order == 1:
             self.forward = self.forward_dx
@@ -48,9 +55,21 @@ class Loss(torch.nn.Module):
 
         loss = 0
 
-        loss += self.lambda_1 * torch.mean((x - x_decode) ** 2)
-        loss += self.lambda_2 * torch.mean((dz - dz_pred) ** 2)
-        loss += self.lambda_3 * torch.mean((dx - dx_decode) ** 2)
+        loss += (
+            self.lambda_1
+            * torch.mean((x - x_decode) ** 2)
+            / (torch.mean(x**2) + self.eps)
+        )
+        loss += (
+            self.lambda_2
+            * torch.mean((dz - dz_pred) ** 2)
+            / (torch.mean(dz**2) + self.eps)
+        )
+        loss += (
+            self.lambda_3
+            * torch.mean((dx - dx_decode) ** 2)
+            / (torch.mean(dx**2) + self.eps)
+        )
         loss += (
             int(self.regularization)
             * self.lambda_r
@@ -76,10 +95,26 @@ class Loss(torch.nn.Module):
 
         loss = 0
 
-        loss += self.lambda_1 * torch.mean((x - x_decode) ** 2)
-        # dz_pred is in this case ddz_pred
-        loss += self.lambda_2 * torch.mean((ddz - dz_pred) ** 2)
-        loss += self.lambda_3 * torch.mean((ddx - ddx_decode) ** 2)
+        self.reconstruction_loss = (
+            self.lambda_1
+            * torch.mean((x - x_decode) ** 2)
+            / (torch.mean(x**2) + self.eps)
+        )
+        self.latent_loss = (
+            self.lambda_2
+            * torch.mean((dz - dz_pred) ** 2)
+            / (torch.mean(dz**2) + self.eps)
+        )
+        self.sindy_loss = (
+            self.lambda_3
+            * torch.mean((ddx - ddx_decode) ** 2)
+            / (torch.mean(ddx**2) + self.eps)
+        )
+
+        loss += self.reconstruction_loss
+        # dz_pred is interpreted as ddz_pred in second-order case
+        loss += self.latent_loss
+        loss += self.sindy_loss
         loss += (
             int(self.regularization)
             * self.lambda_r
@@ -89,16 +124,4 @@ class Loss(torch.nn.Module):
         return loss
 
     def set_regularization(self, include_regularization: bool) -> None:
-
         self.regularization = include_regularization
-
-
-# if __name__ == "__main__":
-#     loss = Loss(1,1,1,1)
-
-#     X = torch.ones((2, 2))
-#     dZ = torch.zeros((2, 1))
-#     X_decode = torch.ones((2, 2))
-#     sindy = torch.ones((1, 3))
-
-#     print(loss(X, dZ, X_decode, sindy))

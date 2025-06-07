@@ -1,6 +1,5 @@
-from typing import List, Dict
 import torch
-from SINDy_Autoencoder.autoencoder.linear import LinearLayer
+from .linear import LinearLayer
 
 
 class AutoEncoder(torch.nn.Module):
@@ -10,7 +9,7 @@ class AutoEncoder(torch.nn.Module):
     ELU = "elu"
 
     def __init__(
-        self, params: Dict = {}, name: str = "encoder", *args, **kwargs
+        self, params: dict = {}, name: str = "encoder", *args, **kwargs
     ) -> None:
 
         super().__init__(*args, **kwargs)
@@ -78,7 +77,7 @@ class AutoEncoder(torch.nn.Module):
             case _:
                 raise TypeError(f"Invalid activation function {activation}")
 
-    def forward(self, x: torch.Tensor) -> List[torch.Tensor]:
+    def forward(self, x: torch.Tensor) -> list[torch.Tensor]:
         """Forward function of the autoencoder
 
         Args:
@@ -90,36 +89,3 @@ class AutoEncoder(torch.nn.Module):
             List[torch.Tensor]: returns the forward passed list whit the same number of elements as the input
         """
         return self.net(x)
-
-
-# if __name__ == '__main__':
-#     params = {'activation': 'elu', 'weights': [4, 3, 2], 'order': 1}
-
-#     encoder = AutoEncoder(params=params)
-#     out = encoder([torch.ones(4), torch.ones(4)])
-#     print(out)
-
-#     #decoder = AutoEncoder(params=params, name='decoder')
-#     #print(decoder(out))
-#     criterion = torch.nn.MSELoss()
-#     optimizer = torch.optim.SGD(encoder.parameters(), lr=0.01)
-
-#     # Training loop
-#     num_epochs = 100
-#     for epoch in range(num_epochs):
-#         encoder.train()  # Set model to training mode
-#         optimizer.zero_grad()  # Zero the gradients
-
-#         # Forward pass
-#         outputs = encoder(torch.ones((2,4)))
-#         loss = criterion(outputs)
-
-#         # Backward pass
-#         loss.backward()
-#         optimizer.step()
-
-#         # Print progress
-#         if (epoch+1) % 10 == 0:
-#             print(f'Epoch [{epoch+1}/{num_epochs}], Loss: {loss.item():.4f}')
-
-#     print("Training finished.")

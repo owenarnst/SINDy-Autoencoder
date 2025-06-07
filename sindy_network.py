@@ -17,7 +17,7 @@ class SINDy(torch.nn.Module):
         encoder: AutoEncoder,
         decoder: AutoEncoder,
         device: str,
-        params: Dict = {},
+        params: dict = {},
         *args,
         **kwargs
     ) -> None:
@@ -41,6 +41,9 @@ class SINDy(torch.nn.Module):
         self.encoder = encoder
         self.decoder = decoder
 
+        # Set model order to help in intializing other attributes
+        self.model_order = self.params["model_order"]
+
         # Initialize autoencoder parameters ----------
         self.input_dim = self.params["input_dim"]
         self.latent_dim = self.params["latent_dim"]
@@ -49,13 +52,19 @@ class SINDy(torch.nn.Module):
 
         # Library parameters
         self.poly_order = self.params["poly_order"]
-        if self.params["inlude_sine"]:
-            self.include_sine = self.params["include_sine"]
-        else:
-            self.include_sine = False
-        self.library_dim = library_size(
-            self.params["latent_dim"], self.params["poly_order"]
-        )
+        self.include_sine = self.params["include_sine"]
+        if self.model_order == 1:
+            self.library_dim = library_size(
+                self.params["latent_dim"],
+                self.params["poly_order"],
+                self.params["include_sine"],
+            )
+        elif self.model_order == 2:
+            self.library_dim = library_size(
+                2 * self.params["latent_dim"],
+                self.params["poly_order"],
+                self.params["include_sine"],
+            )
 
         # Coefficient parameters
         self.sequential_thresholding = self.params["sequential_thresholding"]
@@ -174,17 +183,9 @@ class SINDy(torch.nn.Module):
 
         # apply thresholding or not
         if self.sequential_thresholding:
-            """
-            tmp = torch.rand(size=(library_dim,latent_dim), dtype=torch.float32)
-            mask = torch.zeros_like(tmp)
-            mask = mask.where(self.coefficient_mask, tmp)
-            """
-            mask = torch.where(
-                self.sindy_coefficients > self.coefficient_threshold,
-                self.sindy_coefficients,
-                0,
+            sindy_predict = torch.matmul(
+                Theta, self.coefficient_mask * self.sindy_coefficients
             )
-            sindy_predict = torch.matmul(Theta, mask * self.sindy_coefficients)
         else:
             sindy_predict = torch.matmul(Theta, self.sindy_coefficients)
 
@@ -197,16 +198,18 @@ class SINDy(torch.nn.Module):
             out_decode[2 * slicer :],
         )
 
-        dz_predict = sindy_predict
+        ddz_predict = sindy_predict
 
         return (
             x,
             dx,
-            dz_predict,
             dz,
+            ddz_predict,
             x_decode,
             dx_decode,
             self.sindy_coefficients,
-            sindy_predict,
-            z,
+            ddz,
+            ddx,
+            ddx_decode,
+            self.coefficient_mask,
         )
